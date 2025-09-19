@@ -34,14 +34,11 @@ class MainActivity : ComponentActivity() {
             Log.i("Check", " - ${f.name} size=${f.length()} exec=${f.canExecute()}")
         }
 
-        var el = EmbeddedLinux(this, debianRootfs.absolutePath)
-        
         setContent {
             GodotGradleBuildEnvironmentTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        //name = "Android",
-                        name = el.exec(listOf("/bin/ls", "-l", "/")),
+                        name = "Android",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
