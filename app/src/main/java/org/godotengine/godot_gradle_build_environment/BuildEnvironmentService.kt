@@ -50,63 +50,20 @@ class BuildEnvironmentService : Service() {
         val id = msg.arg1
 
         val data = msg.data
-        val path = data.getString("path")
-        val workDir = data.getString("workDir")
+        val path = data.getString("path", "/bin/bash")
+        val workDir = data.getString("workDir", "/")
         val args = data.getStringArrayList("args") ?: ArrayList<String>()
         val binds = data.getStringArrayList("binds") ?: ArrayList<String>()
 
-        val libDir = applicationInfo.nativeLibraryDir
-        val proot = File(libDir, "libproot.so").absolutePath
         val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
-
-        val prootTmpDir = File(filesDir, "proot-tmp")
-        prootTmpDir.mkdirs()
-
-        val env = HashMap(System.getenv())
-        env["PROOT_TMP_DIR"] = prootTmpDir.absolutePath
-        env["PROOT_LOADER"] = File(libDir, "libproot-loader.so").absolutePath
-        env["PROOT_LOADER_32"] = File(libDir, "libproot-loader32.so").absolutePath
-
-        val cmd = buildList {
-            addAll(listOf(
-                proot,
-                "-R", rootfs,
-                "-w", workDir,
-            ))
-            for (bind in binds) {
-                addAll(listOf("-b", bind))
-            }
-            /*
-            addAll(listOf(
-                "/usr/bin/env", "-i",
-                "HOME=/root",
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-            ))
-            */
-            add(path)
-            addAll(args)
-        }
-
-        Log.i(TAG, "Cmd: " + cmd.toString())
-
-        val process = ProcessBuilder(cmd).apply {
-            directory(filesDir)
-            environment().putAll(env)
-        }.start()
-
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        val error = process.errorStream.bufferedReader().use { it.readText() }
-        val exitCode = process.waitFor()
-
-        Log.i(TAG, "Output: " + output)
-        Log.i(TAG, "Error: " + error)
-        Log.i(TAG, "ExitCode: " + exitCode.toString())
+        val buildEnvironment = BuildEnvironment(this, rootfs)
+        val result = buildEnvironment.executeCommand(path, args, binds, workDir)
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, 0)
         val replyData = Bundle()
-        replyData.putInt("exitCode", exitCode)
-        replyData.putString("stdout", output)
-        replyData.putString("stderr", error)
+        replyData.putInt("exitCode", result.exitCode)
+        replyData.putString("stdout", result.stdout)
+        replyData.putString("stderr", result.stderr)
         reply.data = replyData
 
         try {
