@@ -19,7 +19,7 @@ class BuildEnvironment(
     init {
         defaultEnv = try {
             File(rootfs, "env").readLines()
-        } catch(e: IOException) {
+        } catch (e: IOException) {
             Log.i(TAG, "Unable to read default environment from $rootfs/env: $e")
             emptyList<String>()
         }
@@ -27,7 +27,12 @@ class BuildEnvironment(
 
     class CommandResult(val exitCode: Int, val stdout: String, val stderr: String)
 
-    fun executeCommand(path: String, args: List<String>, binds: List<String>, workDir: String): CommandResult {
+    fun executeCommand(
+        path: String,
+        args: List<String>,
+        binds: List<String>,
+        workDir: String
+    ): CommandResult {
         val libDir = context.applicationInfo.nativeLibraryDir
         val proot = File(libDir, "libproot.so").absolutePath
 
@@ -40,17 +45,21 @@ class BuildEnvironment(
         env["PROOT_LOADER_32"] = File(libDir, "libproot-loader32.so").absolutePath
 
         val cmd = buildList {
-            addAll(listOf(
-                proot,
-                "-R", rootfs,
-                "-w", workDir,
-            ))
+            addAll(
+                listOf(
+                    proot,
+                    "-R", rootfs,
+                    "-w", workDir,
+                )
+            )
             for (bind in binds) {
                 addAll(listOf("-b", bind))
             }
-            addAll(listOf(
-                "/usr/bin/env", "-i",
-            ))
+            addAll(
+                listOf(
+                    "/usr/bin/env", "-i",
+                )
+            )
             addAll(defaultEnv)
             add(path)
             addAll(args)
