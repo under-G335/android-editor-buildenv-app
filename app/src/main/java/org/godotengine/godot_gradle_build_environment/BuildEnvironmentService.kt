@@ -12,7 +12,7 @@ import android.util.Log
 import android.widget.Toast
 import java.io.File
 
-private const val MSG_EXECUTE_COMMAND = 1
+private const val MSG_EXECUTE_GRADLE = 1
 private const val MSG_COMMAND_RESULT = 2
 
 class BuildEnvironmentService : Service() {
@@ -30,9 +30,9 @@ class BuildEnvironmentService : Service() {
     private inner class IncomingHandler(): Handler() {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
-                MSG_EXECUTE_COMMAND -> {
-                    Log.i("DRS", "recieved MSG_EXECUTE_COMMAND")
-                    this@BuildEnvironmentService.executeCommand(msg)
+                MSG_EXECUTE_GRADLE -> {
+                    Log.i("DRS", "recieved MSG_EXECUTE_GRADLE")
+                    this@BuildEnvironmentService.executeGradle(msg)
                 }
                 else -> super.handleMessage(msg)
             }
@@ -46,18 +46,22 @@ class BuildEnvironmentService : Service() {
         return mMessager.binder
     }
 
-    private fun executeCommand(msg: Message) {
+    private fun executeGradle(msg: Message) {
         val id = msg.arg1
 
         val data = msg.data
-        val path = data.getString("path", "/bin/bash")
-        val workDir = data.getString("workDir", "/")
-        val args = data.getStringArrayList("args") ?: ArrayList<String>()
-        val binds = data.getStringArrayList("binds") ?: ArrayList<String>()
+        val args = data.getStringArrayList("arguments")
+        val projectPath = data.getString("project_path")
+        val gradleBuildDir = data.getString("gradle_build_directory")
 
-        val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
-        val buildEnvironment = BuildEnvironment(this, rootfs)
-        val result = buildEnvironment.executeCommand(path, args, binds, workDir)
+        var result = BuildEnvironment.CommandResult(255, "", "Invalid message")
+
+        if (args != null && projectPath != null && gradleBuildDir != null) {
+            Log.d(TAG, "Received Gradle execute request: ${args} on ${projectPath} / ${gradleBuildDir}")
+            val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
+            val buildEnvironment = BuildEnvironment(this, rootfs)
+            result = buildEnvironment.executeGradle(args, projectPath, gradleBuildDir)
+        }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, 0)
         val replyData = Bundle()

@@ -19,6 +19,7 @@ class BuildEnvironment(
     }
 
     private val defaultEnv: List<String>
+    private var currentProjectPath: String = ""
 
     init {
         defaultEnv = try {
@@ -102,16 +103,50 @@ class BuildEnvironment(
         logAndCaptureStream(STDERR_TAG, BufferedReader(InputStreamReader(process.errorStream)), stderr)
 
         val exitCode = process.waitFor()
-
-        //Log.i(TAG, "Output: " + output)
-        //Log.i(TAG, "Error: " + error)
         Log.i(TAG, "ExitCode: " + exitCode.toString())
 
         return CommandResult(exitCode, stdout.toString(), stderr.toString())
     }
 
-    fun executeGradle(arguments: List<String>, projectPath: String, buildDir: String) {
+    private fun changeProject(projectPath: String, gradleBuildDir: String): File {
+        val tmpDir = File(rootfs,"tmp/build")
 
+        if (currentProjectPath == projectPath) {
+            return tmpDir;
+        }
+        currentProjectPath = ""
+
+        if (tmpDir.exists()) {
+            tmpDir.deleteRecursively()
+        }
+        FileUtils.tryCopyDirectory(File(projectPath, gradleBuildDir), tmpDir)
+
+        currentProjectPath = projectPath
+        return tmpDir
+    }
+
+    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String): CommandResult {
+        val tmpDir = changeProject(projectPath, gradleBuildDir)
+
+        val gradleCmd = buildString {
+            append("bash gradlew ")
+            append(gradleArgs.joinToString(" "))
+            if ("--no-daemon" !in gradleArgs) {
+                append(" --no-daemon")
+            }
+        }
+
+        val path = "/bin/bash"
+        val args = listOf(
+            "-c",
+            gradleCmd,
+        )
+        val binds = listOf(
+            projectPath,
+        )
+        val workDir = tmpDir.relativeTo(File(rootfs))
+
+        return executeCommand(path, args, binds, workDir.absolutePath)
     }
 
 }

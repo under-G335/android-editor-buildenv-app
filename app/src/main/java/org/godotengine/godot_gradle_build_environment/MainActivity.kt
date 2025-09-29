@@ -20,9 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import org.godotengine.godot_gradle_build_environment.ui.theme.GodotGradleBuildEnvironmentTheme
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.IOException
 
 class MainActivity : ComponentActivity() {
 
@@ -32,50 +29,6 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "GradleBuildEnvironment"
 
     }
-
-    private fun tryCopyFile(source: File, dest: File): Boolean {
-        try {
-            FileInputStream(source).use { input ->
-                FileOutputStream(dest).use { output ->
-                    input.copyTo(output)
-                }
-            }
-        } catch (e: IOException) {
-            Log.e(TAG, "Failed to copy ${source.absolutePath} to ${dest.absolutePath}: ${e.message}")
-            return false
-        }
-        return true
-    }
-
-    private fun tryCopyDirectory(sourceDir: File, destDir: File): Boolean {
-        if (!sourceDir.isDirectory) {
-            Log.e(TAG, "Source directory ${sourceDir.absolutePath} not found")
-            return false
-        }
-
-        sourceDir.walkTopDown().forEach { source ->
-            val relativePath = source.relativeTo(sourceDir)
-            val target = File(destDir, relativePath.path)
-
-            try {
-                if (source.isDirectory) {
-                    if (!target.exists()) {
-                        target.mkdirs()
-                    }
-                } else {
-                    if (!tryCopyFile(source, target)) {
-                        return false
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e(TAG, "Failed to copy ${source.absolutePath} -> ${target.absolutePath}: ${e.message}")
-                return false
-            }
-        }
-
-        return true
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,7 +57,7 @@ class MainActivity : ComponentActivity() {
             val resolveConf = File(debianRootfs, "etc/resolv.conf")
             val resolveConfOverride = File(debianRootfs, "etc/resolv.conf.override")
             if (resolveConfOverride.exists()) {
-                if (tryCopyFile(resolveConfOverride, resolveConf)) {
+                if (FileUtils.tryCopyFile(resolveConfOverride, resolveConf)) {
                     resolveConfOverride.delete()
                 }
             }
@@ -117,9 +70,10 @@ class MainActivity : ComponentActivity() {
             Log.i("Check", " - ${f.name} size=${f.length()} exec=${f.canExecute()}")
         }
 
+        /*
         val buildSource = File("/storage/emulated/0/Documents/multitouch-cubes-demo/android/build")
         val buildDest = File(debianRootfs, "/tmp/build")
-        tryCopyDirectory(buildSource, buildDest)
+        FileUtils.tryCopyDirectory(buildSource, buildDest)
         val gradlewDest = File(buildDest, "gradlew")
         gradlewDest.setExecutable(true, false)
 
@@ -140,10 +94,6 @@ class MainActivity : ComponentActivity() {
             //"cat /etc/resolv.conf.override"
             //"echo nameserver 8.8.8.8 > /etc/resolv.conf && cat /etc/resolv.conf"
 
-
-
-
-
             //"set",
             //"echo 'hi' > drs",
             //"sh gradlew tasks",
@@ -159,6 +109,7 @@ class MainActivity : ComponentActivity() {
             "/tmp/build",
             //"/storage/emulated/0/Documents/multitouch-cubes-demo/android/build",
         )
+        */
 
         setContent {
             GodotGradleBuildEnvironmentTheme {
