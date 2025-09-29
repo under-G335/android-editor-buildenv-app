@@ -1,0 +1,12 @@
+TODO
+====
+
+- Get a gradle build running in some form or fashion
+  - Can we get more frequent writing to the log with progress as it runs?
+
+Notes:
+
+- It looks like we need to copy the `android/build` directory into the rootfs for this to work
+- We should bind the whole shared Documents directory into the rootfs, so any output directory for the Gradle artifacts will work
+- I'm not sure if we still need green-green-avk's fork or can use the termux fork - I've gone back and forth too many times
+
