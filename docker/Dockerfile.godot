@@ -16,6 +16,14 @@ ARG NDK_VERSION
 # move it when unpacking the rootfs.
 COPY resolv.conf /etc/resolv.conf.override
 
+# @todo remove this
+#RUN apk add patchelf
+
+# Include the arm64 aapt2 binaries from Termux.
+#COPY termux-aapt2-pkg/data /data
+# Include the arm64 aapt2 binaries from JonForShort
+COPY aapt2 /usr/local
+
 # Since we don't automatically get the Docker metadata, write important environment variables.
 RUN echo "PATH=$PATH" >> /env \
  && echo "HOME=/home/android" >> /env \

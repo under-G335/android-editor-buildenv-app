@@ -71,12 +71,6 @@ class MainActivity : ComponentActivity() {
         }
 
         /*
-        val buildSource = File("/storage/emulated/0/Documents/multitouch-cubes-demo/android/build")
-        val buildDest = File(debianRootfs, "/tmp/build")
-        FileUtils.tryCopyDirectory(buildSource, buildDest)
-        val gradlewDest = File(buildDest, "gradlew")
-        gradlewDest.setExecutable(true, false)
-
         // DEBUG!
         val buildEnv = BuildEnvironment(this, debianRootfs.absolutePath)
         val binds = listOf(

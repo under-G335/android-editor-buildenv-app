@@ -4,6 +4,8 @@ TODO
 - Get Gradle build running to completion
   - Detect and solve the AAPT thing
 - We should bind the whole shared Documents directory, not just the given project (so other stuff can be found)
+  - Or, just bind all of `/storage`?
+  - I wonder if this might fix our issues with `getcwd` not working in there?
 - Godot: Show better progress to the user
   - Popup the window and show output
     - Should we combine stdout and stderr? My inclination is "yes"

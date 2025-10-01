@@ -125,9 +125,14 @@ class BuildEnvironment(
         return tmpDir
     }
 
-    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String): CommandResult {
-        val tmpDir = changeProject(projectPath, gradleBuildDir)
+    private fun findAapt2Jars(root: File): List<File> {
+        val regex = Regex("""aapt2-.*-linux\.jar""")
+        return root.walkTopDown()
+            .filter { it.isFile && regex.matches(it.name) }
+            .toList()
+    }
 
+    private fun executeGradleInternal(gradleArgs: List<String>, workDir: File): CommandResult {
         val gradleCmd = buildString {
             append("bash gradlew ")
             append(gradleArgs.joinToString(" "))
@@ -142,11 +147,38 @@ class BuildEnvironment(
             gradleCmd,
         )
         val binds = listOf(
-            projectPath,
+            "/storage",
         )
-        val workDir = tmpDir.relativeTo(File(rootfs))
 
         return executeCommand(path, args, binds, workDir.absolutePath)
+    }
+
+    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String): CommandResult {
+        val tmpDir = changeProject(projectPath, gradleBuildDir)
+        val workDir = tmpDir.relativeTo(File(rootfs))
+
+        var result = executeGradleInternal(gradleArgs, workDir)
+
+        // Detect if we hit the AAPT2 issue.
+        if (result.stderr.contains("BUILD FAILED") && result.stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
+            Log.d(TAG, "Detected AAPT2 issue - attempting to patch the JAR files...")
+            // Fix each of the aapt2 JAR files.
+            findAapt2Jars(tmpDir).forEach { jarFile ->
+                Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
+                var jarFileRelative = jarFile.relativeTo(File(rootfs))
+                var args = listOf(
+                    "-c",
+                    "jar -u -f /${jarFileRelative.path} -C /usr/local/bin aapt2",
+                )
+                // @todo Detect if this fails, and do... something?
+                executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath)
+            }
+
+            // Now, try the running Gradle again!
+            result = executeGradleInternal(gradleArgs, workDir)
+        }
+
+        return result
     }
 
 }

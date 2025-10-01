@@ -60,7 +60,10 @@ class BuildEnvironmentService : Service() {
             Log.d(TAG, "Received Gradle execute request: ${args} on ${projectPath} / ${gradleBuildDir}")
             val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
             val buildEnvironment = BuildEnvironment(this, rootfs)
+
             result = buildEnvironment.executeGradle(args, projectPath, gradleBuildDir)
+
+
         }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, 0)
