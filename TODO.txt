@@ -17,6 +17,10 @@ TODO
 - Figure out which Termux fork we need (and update build system to use it)
 - Build the Android SDK tools from source
   - https://github.com/lzhiyong/android-sdk-tools
+- Storing projects
+  - We should have a "projects" directory under the app files (next to "rootfs")
+  - We should bind it into the proot environment as `/projects`
+  - We should name the directories after a hash of the full path the project came from
 
 Notes:
 
