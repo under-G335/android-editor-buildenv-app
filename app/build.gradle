@@ -11,7 +11,9 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDirs += ['../thirdparty/proot/build/bin']
+            jniLibs.srcDirs += [
+                '../thirdparty/proot/build/bin',
+            ]
         }
     }
 

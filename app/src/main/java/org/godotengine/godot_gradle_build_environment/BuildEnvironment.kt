@@ -64,6 +64,8 @@ class BuildEnvironment(
         //env["PROOT_NO_SECCOMP"] = "1"
         //env["PROOT_VERBOSE"] = "9"
 
+        //val qemu = File(libDir, "libqemu-x86_64.so")
+
         val cmd = buildList {
             addAll(
                 listOf(
@@ -71,6 +73,7 @@ class BuildEnvironment(
                     //"-0",
                     "-R", rootfs,
                     "-w", workDir,
+                    //"-q", qemu.absolutePath,
                     // Stuff to try:
                     //"--link2symlink", "-L", "--tcsetsf2tcsets",
                 )
@@ -162,16 +165,18 @@ class BuildEnvironment(
         // Detect if we hit the AAPT2 issue.
         if (result.stderr.contains("BUILD FAILED") && result.stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
             Log.d(TAG, "Detected AAPT2 issue - attempting to patch the JAR files...")
-            // Fix each of the aapt2 JAR files.
+            // Update the JAR files to include the aapt2 that is bundled in the rootfs.
             findAapt2Jars(tmpDir).forEach { jarFile ->
                 Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
                 var jarFileRelative = jarFile.relativeTo(File(rootfs))
                 var args = listOf(
                     "-c",
-                    "jar -u -f /${jarFileRelative.path} -C /usr/local/bin aapt2",
+                    "jar -u -f /${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
                 )
-                // @todo Detect if this fails, and do... something?
-                executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath)
+                val jarUpdateResult = executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath)
+                if (jarUpdateResult.exitCode != 0) {
+                    // @todo Detect if this fails, and do... something?
+                }
             }
 
             // Now, try the running Gradle again!

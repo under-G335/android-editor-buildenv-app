@@ -1,4 +1,7 @@
 #!/usr/bin/bash
 
-docker run --rm --platform=linux/arm64/v8 -it "$@" godotengine/alpine-android:android-35-jdk17 /bin/bash
+#PLATFORM=${PLATFORM:-linux/amd64}
+PLATFORM=${PLATFORM:-linux/arm64/v8}
+
+docker run --rm --platform=$PLATFORM -it "$@" godotengine/alpine-android:android-35-jdk17 /bin/bash
 

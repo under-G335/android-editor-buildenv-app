@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
             //"bash gradlew tasks",
             //"rm -rf /tmp/ttt && cp -r /storage/emulated/0/Documents/multitouch-cubes-demo/android/build /tmp/ttt",
             //"cd /tmp/ttt && bash gradlew tasks",
-            "bash gradlew tasks --no-daemon",
+            //"bash gradlew tasks --no-daemon",
             //"ping -c 2 services.gradle.org"
             //"curl http://1.1.1.1/"
             //"cat /etc/resolv.conf.override"
@@ -92,15 +92,18 @@ class MainActivity : ComponentActivity() {
             //"echo 'hi' > drs",
             //"sh gradlew tasks",
             //"echo \$HOME",
-            //"java",
+            //"java -Xint",
             //"/tmp/gradlew tasks",
+            //"ls -l /",
+            "aapt2",
         )
         buildEnv.executeCommand(
             //"/usr/bin/env",
             "/bin/bash",
             args,
             binds,
-            "/tmp/build",
+            "/",
+            //"/tmp/build",
             //"/storage/emulated/0/Documents/multitouch-cubes-demo/android/build",
         )
         */
