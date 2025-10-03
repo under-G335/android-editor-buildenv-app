@@ -22,9 +22,13 @@ class BuildEnvironmentService : Service() {
     }
 
     private lateinit var mMessager: Messenger
+    private lateinit var mBuildEnvironment: BuildEnvironment
 
     override fun onCreate() {
         super.onCreate()
+
+        val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
+        mBuildEnvironment = BuildEnvironment(this, rootfs)
     }
 
     private inner class IncomingHandler(): Handler() {
@@ -58,12 +62,7 @@ class BuildEnvironmentService : Service() {
 
         if (args != null && projectPath != null && gradleBuildDir != null) {
             Log.d(TAG, "Received Gradle execute request: ${args} on ${projectPath} / ${gradleBuildDir}")
-            val rootfs = File(filesDir, "rootfs/alpine-android-35-jdk17").absolutePath
-            val buildEnvironment = BuildEnvironment(this, rootfs)
-
-            result = buildEnvironment.executeGradle(args, projectPath, gradleBuildDir)
-
-
+            result = mBuildEnvironment.executeGradle(args, projectPath, gradleBuildDir)
         }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, 0)

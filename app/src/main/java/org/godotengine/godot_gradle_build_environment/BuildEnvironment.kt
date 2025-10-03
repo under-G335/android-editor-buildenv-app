@@ -139,7 +139,7 @@ class BuildEnvironment(
     private fun executeGradleInternal(gradleArgs: List<String>, workDir: File): CommandResult {
         val gradleCmd = buildString {
             append("bash gradlew ")
-            append(gradleArgs.joinToString(" "))
+            append(gradleArgs.joinToString(" ") { "\"$it\""})
             if ("--no-daemon" !in gradleArgs) {
                 append(" --no-daemon")
             }
