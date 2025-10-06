@@ -17,6 +17,9 @@ class BuildEnvironment(
         private const val TAG = "BuildEnvironment"
         private const val STDOUT_TAG = "BuildEnvironment-Stdout"
         private const val STDERR_TAG = "BuildEnvironment-Stderr"
+
+        public const val STDOUT = 1;
+        public const val STDERR = 2;
     }
 
     private val defaultEnv: List<String>
@@ -31,27 +34,23 @@ class BuildEnvironment(
         }
     }
 
-    private fun logAndCaptureStream(tag: String, reader: BufferedReader, output: StringBuilder) {
-        Thread {
+    private fun logAndCaptureStream(reader: BufferedReader, handler: (String) -> Unit): Thread {
+        return Thread {
             reader.useLines { lines ->
                 lines.forEach { line ->
-                    Log.d(tag, line)
-                    synchronized(output) {
-                        output.appendLine(line)
-                    }
+                    handler(line)
                 }
             }
-        }.start()
+        }
     }
-
-    class CommandResult(val exitCode: Int, val stdout: String, val stderr: String)
 
     fun executeCommand(
         path: String,
         args: List<String>,
         binds: List<String>,
-        workDir: String
-    ): CommandResult {
+        workDir: String,
+        outputHandler: (Int, String) -> Unit,
+    ): Int {
         val libDir = context.applicationInfo.nativeLibraryDir
         val proot = File(libDir, "libproot.so").absolutePath
 
@@ -100,16 +99,25 @@ class BuildEnvironment(
             environment().putAll(env)
         }.start()
 
-        val stdout = StringBuilder()
-        val stderr = StringBuilder()
+        val stdoutThread = logAndCaptureStream(BufferedReader(InputStreamReader(process.inputStream)), { line ->
+            Log.i(STDOUT_TAG, line)
+            outputHandler(STDOUT, line)
+        })
+        val stderrThread = logAndCaptureStream(BufferedReader(InputStreamReader(process.errorStream)), { line ->
+            Log.i(STDERR_TAG, line)
+            outputHandler(STDERR, line)
+        })
 
-        logAndCaptureStream(STDOUT_TAG, BufferedReader(InputStreamReader(process.inputStream)), stdout)
-        logAndCaptureStream(STDERR_TAG, BufferedReader(InputStreamReader(process.errorStream)), stderr)
+        stdoutThread.start()
+        stderrThread.start()
+
+        stdoutThread.join()
+        stderrThread.join()
 
         val exitCode = process.waitFor()
         Log.i(TAG, "ExitCode: " + exitCode.toString())
 
-        return CommandResult(exitCode, stdout.toString(), stderr.toString())
+        return exitCode
     }
 
     private fun changeProject(projectPath: String, gradleBuildDir: String): File {
@@ -136,7 +144,7 @@ class BuildEnvironment(
             .toList()
     }
 
-    private fun executeGradleInternal(gradleArgs: List<String>, workDir: File): CommandResult {
+    private fun executeGradleInternal(gradleArgs: List<String>, workDir: File, outputHandler: (Int, String) -> Unit): Int {
         val gradleCmd = buildString {
             append("bash gradlew ")
             append(gradleArgs.joinToString(" ") { "\"$it\""})
@@ -154,10 +162,10 @@ class BuildEnvironment(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath,
         )
 
-        return executeCommand(path, args, binds, workDir.absolutePath)
+        return executeCommand(path, args, binds, workDir.absolutePath, outputHandler)
     }
 
-    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String): CommandResult {
+    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
         val tmpDir = changeProject(projectPath, gradleBuildDir)
         val workDir = tmpDir.relativeTo(File(rootfs))
 
@@ -165,10 +173,20 @@ class BuildEnvironment(
         //val tmpDir = File(projectPath, gradleBuildDir)
         //val workDir = tmpDir
 
-        var result = executeGradleInternal(gradleArgs, workDir)
+        val stderrBuilder = StringBuilder()
+
+        var result = executeGradleInternal(gradleArgs, workDir, { type, line ->
+            if (type == STDERR) {
+                synchronized(stderrBuilder) {
+                    stderrBuilder.appendLine(line)
+                }
+            }
+            outputHandler(type, line)
+        })
 
         // Detect if we hit the AAPT2 issue.
-        if (result.stderr.contains("BUILD FAILED") && result.stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
+        val stderr = stderrBuilder.toString()
+        if (stderr.contains("BUILD FAILED") && stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
             Log.d(TAG, "Detected AAPT2 issue - attempting to patch the JAR files...")
             // Update the JAR files to include the aapt2 that is bundled in the rootfs.
             findAapt2Jars(tmpDir).forEach { jarFile ->
@@ -178,14 +196,14 @@ class BuildEnvironment(
                     "-c",
                     "jar -u -f /${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
                 )
-                val jarUpdateResult = executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath)
-                if (jarUpdateResult.exitCode != 0) {
+                val jarUpdateResult = executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath, outputHandler)
+                if (jarUpdateResult != 0) {
                     // @todo Detect if this fails, and do... something?
                 }
             }
 
             // Now, try the running Gradle again!
-            result = executeGradleInternal(gradleArgs, workDir)
+            result = executeGradleInternal(gradleArgs, workDir, outputHandler)
         }
 
         return result
