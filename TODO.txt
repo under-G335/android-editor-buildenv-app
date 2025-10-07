@@ -5,6 +5,8 @@ TODO
   - We should have a "projects" directory under the app files (next to "rootfs")
   - We should bind it into the proot environment as `/projects`
   - We should name the directories after a hash of the full path the project came from
+- Implement `cleanProject` and have it copy the contents of the temp directory back to the original
+  - ... and then delete the original
 - Build the Android SDK tools from source
   - https://github.com/lzhiyong/android-sdk-tools
 - Check that Godot (and only Godot) is connecting to the service
