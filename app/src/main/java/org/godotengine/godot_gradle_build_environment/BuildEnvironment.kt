@@ -221,7 +221,7 @@ class BuildEnvironment(
         return result
     }
 
-    public fun killCurrentProcess() {
+    fun killCurrentProcess() {
         if (currentProcess != null) {
             currentProcess?.destroy()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -230,6 +230,11 @@ class BuildEnvironment(
             }
             currentProcess = null
         }
+    }
+
+    fun cleanProject(projectPath: String, gradleBuildDir: String) {
+        // @todo Copy everything in the tmp dir back to the original location
+        // @todo Delete the temp dir
     }
 
 }

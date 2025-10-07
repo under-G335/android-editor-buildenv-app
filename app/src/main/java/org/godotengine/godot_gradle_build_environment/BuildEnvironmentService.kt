@@ -56,7 +56,7 @@ class BuildEnvironmentService : Service() {
                 when (msg.what) {
                     MSG_EXECUTE_GRADLE -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_CANCEL_COMMAND -> cancelWork(msg.arg1)
-                    MSG_CLEAN_PROJECT -> queueWork(WorkItem(copy, -1))
+                    MSG_CLEAN_PROJECT -> queueWork(WorkItem(copy, msg.arg1))
                 }
             }
         }
@@ -89,10 +89,10 @@ class BuildEnvironmentService : Service() {
         Log.i(TAG, "Canceling command: ${id}")
         
         synchronized(lock) {
-            if (currentItem?.id == id) {
+            if (currentItem?.id == id && currentItem?.msg?.what == MSG_EXECUTE_GRADLE) {
                 mBuildEnvironment.killCurrentProcess()
             }
-            queue.removeAll { it.id == id }
+            queue.removeAll { it.id == id && it.msg.what == MSG_EXECUTE_GRADLE }
         }
     }
 
@@ -156,12 +156,19 @@ class BuildEnvironmentService : Service() {
 
     private fun cleanProject(msg: Message) {
         val data = msg.data
-        val args = data.getStringArrayList("arguments")
         val projectPath = data.getString("project_path")
         val gradleBuildDir = data.getString("gradle_build_directory")
 
-        // @todo Clean out the cached data for the project
+        if (projectPath != null && gradleBuildDir != null) {
+            mBuildEnvironment.cleanProject(projectPath, gradleBuildDir)
+        }
 
+        val reply = Message.obtain(null, MSG_COMMAND_RESULT, msg.arg1, 0)
+        try {
+            msg.replyTo.send(reply)
+        } catch (e: RemoteException) {
+            Log.e(TAG, "Error sending result to client: ${e.message}")
+        }
     }
 
 }
