@@ -199,7 +199,8 @@ class BuildEnvironment(
                 )
                 val jarUpdateResult = executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath, outputHandler)
                 if (jarUpdateResult != 0) {
-                    // @todo Detect if this fails, and do... something?
+                    // If this failed, then there's not much else we can do.
+                    return jarUpdateResult;
                 }
             }
 

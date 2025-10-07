@@ -2,8 +2,6 @@ TODO
 ====
 
 - Godot: Show better progress to the user
-  - Popup the window and show output
-    - Should we combine stdout and stderr? My inclination is "yes"
   - Have a way to cancel the build
     - We probably need to do better with threads?
   - Only return control to the user when the build has finished or been canceled
