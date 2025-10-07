@@ -18,8 +18,9 @@ class BuildEnvironment(
         private const val STDOUT_TAG = "BuildEnvironment-Stdout"
         private const val STDERR_TAG = "BuildEnvironment-Stderr"
 
-        public const val STDOUT = 1;
-        public const val STDERR = 2;
+        public const val OUTPUT_INFO = 0;
+        public const val OUTPUT_STDOUT = 1;
+        public const val OUTPUT_STDERR = 2;
     }
 
     private val defaultEnv: List<String>
@@ -101,11 +102,11 @@ class BuildEnvironment(
 
         val stdoutThread = logAndCaptureStream(BufferedReader(InputStreamReader(process.inputStream)), { line ->
             Log.i(STDOUT_TAG, line)
-            outputHandler(STDOUT, line)
+            outputHandler(OUTPUT_STDOUT, line)
         })
         val stderrThread = logAndCaptureStream(BufferedReader(InputStreamReader(process.errorStream)), { line ->
             Log.i(STDERR_TAG, line)
-            outputHandler(STDERR, line)
+            outputHandler(OUTPUT_STDERR, line)
         })
 
         stdoutThread.start()
@@ -176,7 +177,7 @@ class BuildEnvironment(
         val stderrBuilder = StringBuilder()
 
         var result = executeGradleInternal(gradleArgs, workDir, { type, line ->
-            if (type == STDERR) {
+            if (type == OUTPUT_STDERR) {
                 synchronized(stderrBuilder) {
                     stderrBuilder.appendLine(line)
                 }
@@ -187,7 +188,7 @@ class BuildEnvironment(
         // Detect if we hit the AAPT2 issue.
         val stderr = stderrBuilder.toString()
         if (stderr.contains("BUILD FAILED") && stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
-            Log.d(TAG, "Detected AAPT2 issue - attempting to patch the JAR files...")
+            outputHandler(OUTPUT_INFO, "> Detected AAPT2 issue - attempting to patch the JAR files...")
             // Update the JAR files to include the aapt2 that is bundled in the rootfs.
             findAapt2Jars(tmpDir).forEach { jarFile ->
                 Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
@@ -203,6 +204,7 @@ class BuildEnvironment(
             }
 
             // Now, try the running Gradle again!
+            outputHandler(OUTPUT_INFO, "> Retrying Gradle build...")
             result = executeGradleInternal(gradleArgs, workDir, outputHandler)
         }
 
