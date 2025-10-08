@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 class BuildEnvironment(
     private val context: Context,
     private val rootfs: String,
+    private val projectRoot: String,
 ) {
 
     companion object {
@@ -26,7 +27,6 @@ class BuildEnvironment(
     }
 
     private val defaultEnv: List<String>
-    private var currentProjectPath: String = ""
     private var currentProcess: Process? = null
 
     init {
@@ -135,21 +135,27 @@ class BuildEnvironment(
         return exitCode
     }
 
-    private fun changeProject(projectPath: String, gradleBuildDir: String): File {
-        val tmpDir = File(rootfs,"tmp/build")
+    private fun setupProject(projectPath: String, gradleBuildDir: String): File {
+        val fullPath = File(projectPath, gradleBuildDir)
+        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
+        val workDir = File(projectRoot, hash)
 
-        if (currentProjectPath == projectPath) {
-            return tmpDir;
+        if (!workDir.exists()) {
+            FileUtils.tryCopyDirectory(fullPath, workDir)
         }
-        currentProjectPath = ""
 
-        if (tmpDir.exists()) {
-            tmpDir.deleteRecursively()
+        return workDir
+    }
+
+    fun cleanProject(projectPath: String, gradleBuildDir: String) {
+        val fullPath = File(projectPath, gradleBuildDir)
+        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
+        val workDir = File(projectRoot, hash)
+
+        if (workDir.exists()) {
+            FileUtils.tryCopyDirectory(workDir, fullPath)
+            workDir.deleteRecursively()
         }
-        FileUtils.tryCopyDirectory(File(projectPath, gradleBuildDir), tmpDir)
-
-        currentProjectPath = projectPath
-        return tmpDir
     }
 
     private fun findAapt2Jars(root: File): List<File> {
@@ -175,14 +181,14 @@ class BuildEnvironment(
         )
         val binds = listOf(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath,
+            "${workDir.absolutePath}:/project",
         )
 
-        return executeCommand(path, args, binds, workDir.absolutePath, outputHandler)
+        return executeCommand(path, args, binds, "/project", outputHandler)
     }
 
     fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
-        val tmpDir = changeProject(projectPath, gradleBuildDir)
-        val workDir = tmpDir.relativeTo(File(rootfs))
+        val workDir = setupProject(projectPath, gradleBuildDir)
 
         // @todo This runs gradle in place - I think we could probably hack proot until it works.
         //val tmpDir = File(projectPath, gradleBuildDir)
@@ -204,14 +210,14 @@ class BuildEnvironment(
         if (stderr.contains("BUILD FAILED") && stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
             outputHandler(OUTPUT_INFO, "> Detected AAPT2 issue - attempting to patch the JAR files...")
             // Update the JAR files to include the aapt2 that is bundled in the rootfs.
-            findAapt2Jars(tmpDir).forEach { jarFile ->
+            findAapt2Jars(workDir).forEach { jarFile ->
                 Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
-                var jarFileRelative = jarFile.relativeTo(File(rootfs))
+                var jarFileRelative = jarFile.relativeTo(workDir)
                 var args = listOf(
                     "-c",
-                    "jar -u -f /${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
+                    "jar -u -f /project/${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
                 )
-                val jarUpdateResult = executeCommand("/bin/bash", args, ArrayList<String>(), workDir.absolutePath, outputHandler)
+                val jarUpdateResult = executeCommand("/bin/bash", args, listOf("${workDir.absolutePath}:/project"), "/project", outputHandler)
                 if (jarUpdateResult != 0) {
                     // If this failed, then there's not much else we can do.
                     return jarUpdateResult;
@@ -235,12 +241,6 @@ class BuildEnvironment(
                 process.destroyForcibly()
             }
         }
-    }
-
-    fun cleanProject(projectPath: String, gradleBuildDir: String) {
-        Log.d(TAG, "TODO Clean project!")
-        // @todo Copy everything in the tmp dir back to the original location
-        // @todo Delete the temp dir
     }
 
 }

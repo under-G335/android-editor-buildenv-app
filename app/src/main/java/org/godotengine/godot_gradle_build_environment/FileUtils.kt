@@ -30,6 +30,7 @@ object FileUtils {
             return false
         }
 
+        var success = true
         sourceDir.walkTopDown().forEach { source ->
             val relativePath = source.relativeTo(sourceDir)
             val target = File(destDir, relativePath.path)
@@ -46,11 +47,11 @@ object FileUtils {
                 }
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy ${source.absolutePath} -> ${target.absolutePath}: ${e.message}")
-                return false
+                success = false
             }
         }
 
-        return true
+        return success
     }
 
 }
