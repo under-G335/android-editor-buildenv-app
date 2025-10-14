@@ -18,6 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
+import androidx.navigation.NavHost
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import org.godotengine.godot_gradle_build_environment.ui.navigation.NavigationHost
 import org.godotengine.godot_gradle_build_environment.ui.theme.GodotGradleBuildEnvironmentTheme
 import java.io.File
 
@@ -110,12 +115,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             GodotGradleBuildEnvironmentTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                CreateNav()
             }
         }
     }
@@ -136,17 +136,6 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    GodotGradleBuildEnvironmentTheme {
-        Greeting("Android")
-    }
+fun CreateNav(navController: NavHostController = rememberNavController()) {
+    NavigationHost(navController = navController)
 }

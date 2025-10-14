@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Godot Gradle Build Environment</string>
+    <string name="settings_screen_title">Settings</string>
+    <string name="back_button">Back</string>
+    <string name="projects_screen_title">Projects</string>
+    <string name="settings_button">Settings</string>
 </resources>

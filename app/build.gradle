@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId "org.godotengine.godot_gradle_build_environment"
         minSdk 24
-        targetSdk 32
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
@@ -55,6 +55,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.commons.compress)
     implementation(libs.xz)
     implementation libs.androidx.core.ktx
