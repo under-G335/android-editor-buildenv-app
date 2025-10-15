@@ -6,4 +6,4 @@
 	url = https://github.com/alvr/alpine-android.git
 [submodule "thirdparty/android-sdk-tools/android-sdk-tools-source"]
 	path = thirdparty/android-sdk-tools/android-sdk-tools-source
-	url = https://github.com/lzhiyong/android-sdk-tools.git
+	url = https://github.com/dsnopek/android-sdk-tools.git
