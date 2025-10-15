@@ -1,9 +1,6 @@
 TODO
 ====
 
-- Fix issue with it finding the debug keystore after rebasing on Godot 4.5
 - Build the Android SDK tools from source
   - https://github.com/lzhiyong/android-sdk-tools
 - Check that Godot (and only Godot) is connecting to the service
-- Add some simple UI to install and delete the Linux rootfs
-  - Do this on another thread and with a nice progress bar
