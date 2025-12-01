@@ -1,7 +1,7 @@
-Godot Gradle Build Environment for Android
-==========================================
+Godot Android Build Environment (or GABE) for Android
+=====================================================
 
 This is an (experimental) Android app that provides a Gradle Build Environment
-that provides a service, which can be used by Godot to perform Gradle builds
-when running the Godot editor natively on an Android device.
+through an Android service, which can be used by the Godot editor to perform Gradle builds
+when running natively on an Android device.
 

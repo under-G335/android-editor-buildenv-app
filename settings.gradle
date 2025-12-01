@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Godot Gradle Build Environment"
+rootProject.name = "Godot Android Build Environment (GABE)"
 include ':app'
