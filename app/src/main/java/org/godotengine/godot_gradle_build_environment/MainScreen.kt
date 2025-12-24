@@ -41,7 +41,8 @@ fun MainScreen(
     rootfsReadyFile: File,
     extractRootfs: () -> Unit,
 ) {
-    var selectedTab by remember { mutableStateOf(AppTab.ROOTFS) }
+    val initialTab = if (rootfsReadyFile.exists()) AppTab.PROJECTS else AppTab.ROOTFS
+    var selectedTab by remember { mutableStateOf(initialTab) }
 
     Scaffold(
         topBar = {
