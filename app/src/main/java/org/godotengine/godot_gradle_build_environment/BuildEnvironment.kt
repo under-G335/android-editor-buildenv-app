@@ -143,6 +143,7 @@ class BuildEnvironment(
 
         if (!workDir.exists()) {
             FileUtils.tryCopyDirectory(fullPath, workDir)
+            ProjectInfo.writeToDirectory(workDir, projectPath, gradleBuildDir)
         }
 
         return workDir
