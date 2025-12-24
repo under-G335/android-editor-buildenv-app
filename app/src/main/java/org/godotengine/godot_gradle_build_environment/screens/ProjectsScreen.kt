@@ -1,20 +1,41 @@
 package org.godotengine.godot_gradle_build_environment.screens
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.Message
+import android.os.Messenger
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.godotengine.godot_gradle_build_environment.AppPaths
+import org.godotengine.godot_gradle_build_environment.BuildEnvironmentService
 import org.godotengine.godot_gradle_build_environment.CachedProject
 import org.godotengine.godot_gradle_build_environment.FileUtils
 import org.godotengine.godot_gradle_build_environment.ProjectInfo
@@ -33,8 +55,43 @@ import org.godotengine.godot_gradle_build_environment.ProjectInfo
 @Composable
 fun ProjectsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val projects = remember { loadCachedProjects(context) }
+    var projects by remember { mutableStateOf(loadCachedProjects(context)) }
     val sizeCache = remember { mutableStateMapOf<String, Long>() }
+    val deletingProjects = remember { mutableStateListOf<String>() }
+    var serviceMessenger by remember { mutableStateOf<Messenger?>(null) }
+    var replyMessenger by remember { mutableStateOf<Messenger?>(null) }
+
+    DisposableEffect(context) {
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                serviceMessenger = Messenger(service)
+
+                val handler = object : Handler(Looper.getMainLooper()) {
+                    override fun handleMessage(msg: Message) {
+                        if (msg.what == BuildEnvironmentService.MSG_COMMAND_RESULT) {
+                            // Deletion completed, reload projects list
+                            projects = loadCachedProjects(context)
+                            deletingProjects.clear()
+                        }
+                    }
+                }
+                replyMessenger = Messenger(handler)
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                serviceMessenger = null
+                replyMessenger = null
+            }
+        }
+
+        val intent = Intent("org.godotengine.action.BUILD_PROVIDER")
+        intent.setPackage(context.packageName)
+        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+
+        onDispose {
+            context.unbindService(connection)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -63,18 +120,51 @@ fun ProjectsScreen(modifier: Modifier = Modifier) {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(projects) { project ->
-                    ProjectItem(project, sizeCache)
+                items(projects, key = { it.cacheDirectory.absolutePath }) { project ->
+                    ProjectItem(
+                        project = project,
+                        sizeCache = sizeCache,
+                        isDeleting = deletingProjects.contains(project.cacheDirectory.absolutePath),
+                        onDelete = {
+                            deletingProjects.add(project.cacheDirectory.absolutePath)
+                            deleteProject(serviceMessenger, replyMessenger, project)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
+private fun deleteProject(
+    serviceMessenger: Messenger?,
+    replyMessenger: Messenger?,
+    project: CachedProject
+) {
+    if (serviceMessenger == null || replyMessenger == null) return
+
+    val msg = Message.obtain(null, BuildEnvironmentService.MSG_CLEAN_PROJECT, 0, 0)
+    msg.replyTo = replyMessenger
+
+    val data = Bundle()
+    data.putString("project_path", project.info.projectPath)
+    data.putString("gradle_build_directory", project.info.gradleBuildDir)
+    data.putBoolean("force_clean", true)
+    msg.data = data
+
+    try {
+        serviceMessenger.send(msg)
+    } catch (e: Exception) {
+        Log.e("ProjectsScreen", "Error sending delete message for project ${project.info.getProjectName()}: ${e.message}")
+    }
+}
+
 @Composable
 private fun ProjectItem(
     project: CachedProject,
-    sizeCache: MutableMap<String, Long>
+    sizeCache: MutableMap<String, Long>,
+    isDeleting: Boolean,
+    onDelete: () -> Unit
 ) {
     val cacheKey = project.cacheDirectory.absolutePath
     var sizeText by remember { mutableStateOf<String?>(null) }
@@ -98,28 +188,51 @@ private fun ProjectItem(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = project.info.getProjectName(),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = project.info.projectPath,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Text(
-                text = sizeText ?: "Calculating...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = project.info.getProjectName(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = project.info.projectPath,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    text = sizeText ?: "Calculating...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (isDeleting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete project cache",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }
