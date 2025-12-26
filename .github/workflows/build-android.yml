@@ -36,7 +36,7 @@ jobs:
 
           ./latest/bin/sdkmanager \
             "platform-tools" \
-            "platforms;android-34" \
+            "platforms;android-35" \
             "build-tools;34.0.0" \
             "ndk;26.1.10909125"
 
@@ -51,4 +51,3 @@ jobs:
         with:
           name: android-editor-buildenv-debug
           path: app/build/outputs/apk/debug/*.apk
-          
