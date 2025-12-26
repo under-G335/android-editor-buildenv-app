@@ -1,0 +1,54 @@
+name: Build Android Editor BuildEnv App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: project-cache
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android SDK
+        run: |
+          mkdir -p android-sdk/cmdline-tools
+          cd android-sdk/cmdline-tools
+
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip commandlinetools-linux-*.zip
+          mv cmdline-tools latest
+
+          echo "y" | ./latest/bin/sdkmanager --licenses
+
+          ./latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;26.1.10909125"
+
+      - name: Grant Gradle permission
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-editor-buildenv-debug
+          path: app/build/outputs/apk/debug/*.apk
+          
